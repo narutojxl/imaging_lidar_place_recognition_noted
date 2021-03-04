@@ -14,11 +14,11 @@ void LoopDetector::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     int loop_index = -1;
     if (flag_detect_loop)
     {
-        loop_index = detectLoop(cur_kf, cur_kf->index);
+        loop_index = detectLoop(cur_kf, cur_kf->index); //返回当前关键帧与database关键帧中最相似的帧号
     }
     else
     {
-        addKeyFrameIntoVoc(cur_kf);
+        addKeyFrameIntoVoc(cur_kf); 
     }
 
     // check loop if valid using ransan and pnp
@@ -28,7 +28,7 @@ void LoopDetector::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 
         if (abs(cur_kf->time_stamp - old_kf->time_stamp) > MIN_LOOP_SEARCH_TIME)
         {
-            if (cur_kf->findConnection(old_kf))
+            if (cur_kf->findConnection(old_kf)) //用ransac和pnp对词袋计算的结果进行验证
             {
                 std_msgs::Float64MultiArray match_msg;
                 match_msg.data.push_back(cur_kf->time_stamp);
@@ -42,7 +42,7 @@ void LoopDetector::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 
     // add keyframe
     cur_kf->freeMemory();
-    keyframelist.push_back(cur_kf);
+    keyframelist.push_back(cur_kf); //保存每一关键帧
 }
 
 KeyFrame* LoopDetector::getKeyFrame(int index)
@@ -65,8 +65,9 @@ int LoopDetector::detectLoop(KeyFrame* keyframe, int frame_index)
     DBoW3::QueryResults ret;
     db.query(keyframe->bow_descriptors, ret, 4, frame_index - MIN_LOOP_SEARCH_GAP);
     db.add(keyframe->bow_descriptors); // ret[0] is the nearest neighbour's score. threshold change with neighour score
+    //每一帧都会对字典进行扩充
 
-    if (DEBUG_IMAGE)
+    if (DEBUG_IMAGE)//0
     {
         image_pool[frame_index] = keyframe->image.clone();
 
@@ -93,7 +94,7 @@ int LoopDetector::detectLoop(KeyFrame* keyframe, int frame_index)
     
     // a good match with its nerghbour
     bool find_loop = false;
-    if (ret.size() >= 1 && ret[0].Score > MIN_LOOP_BOW_TH)
+    if (ret.size() >= 1 && ret[0].Score > MIN_LOOP_BOW_TH) //当ret.size() == 1 && ret[0].Score > MIN_LOOP_BOW_TH时: find_loop=false
     {
         for (unsigned int i = 1; i < ret.size(); i++)
         {
@@ -109,7 +110,7 @@ int LoopDetector::detectLoop(KeyFrame* keyframe, int frame_index)
         int min_index = -1;
         for (unsigned int i = 0; i < ret.size(); i++)
         {
-            if (min_index == -1 || ((int)ret[i].Id < min_index && ret[i].Score > 0.015))
+            if (min_index == -1 || ((int)ret[i].Id < min_index && ret[i].Score > 0.015)) //MIN_LOOP_BOW_TH
                 min_index = ret[i].Id;
         }
         return min_index;

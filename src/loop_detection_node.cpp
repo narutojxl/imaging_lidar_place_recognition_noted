@@ -119,7 +119,7 @@ void path_handler(const nav_msgs::PathConstPtr& path_msg)
 
 void cloud_handler(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
 {
-    image_handler->cloud_handler(cloud_msg);
+    image_handler->cloud_handler(cloud_msg); //由每个关键帧点云创建range，noise，intensity image
 
     // control insertation frequency
     double cloud_time = cloud_msg->header.stamp.toSec();
@@ -134,7 +134,8 @@ void cloud_handler(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
     KeyFrame* keyframe = new KeyFrame(cloud_time,
                                       global_frame_index,
                                       image_handler->image_intensity,
-                                      image_handler->cloud_track);   
+                                      image_handler->cloud_track); 
+    //对关键帧intensity image计算window orb，window brief，search orb， search brief， bow 5个描述子 
 
     // detect loop
     loopDetector.addKeyFrame(keyframe, 1);
@@ -193,20 +194,20 @@ int main(int argc, char **argv)
     string vocabulary_file;
     fsSettings["vocabulary_file"] >> vocabulary_file;  
     vocabulary_file = pkg_path + vocabulary_file;
-    loopDetector.loadVocabulary(vocabulary_file);
+    loopDetector.loadVocabulary(vocabulary_file); //加载字典
 
     // initialize brief extractor
     string brief_pattern_file;
     fsSettings["brief_pattern_file"] >> brief_pattern_file;  
     brief_pattern_file = pkg_path + brief_pattern_file;
-    briefExtractor = BriefExtractor(brief_pattern_file);
+    briefExtractor = BriefExtractor(brief_pattern_file); //创建briefExtractor
 
     // create a mask for blocking feature extraction
-    MASK = cv::Mat(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1, cv::Scalar(255));
+    MASK = cv::Mat(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1, cv::Scalar(255)); //在intensity image左右两侧各多少列像素不检测特征点,见keyframe.cpp
     for (int i = 0; i < IMAGE_HEIGHT; ++i)
         for (int j = 0; j < IMAGE_WIDTH; ++j)
             if (j < IMAGE_CROP || j > IMAGE_WIDTH - IMAGE_CROP)
-                MASK.at<uchar>(i,j) = 0;
+                MASK.at<uchar>(i,j) = 0; 
 
     ros::Subscriber sub_cloud = n.subscribe(CLOUD_TOPIC, 1, cloud_handler);
     ros::Subscriber sub_path  = n.subscribe(PATH_TOPIC,  1, path_handler);

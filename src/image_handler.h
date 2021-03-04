@@ -27,10 +27,11 @@ public:
         // convert cloud
         pcl::PointCloud<PointOuster>::Ptr laser_cloud(new pcl::PointCloud<PointOuster>());
         pcl::fromROSMsg(*cloud_msg, *laser_cloud);
+        //PointOuster: x, y, z, intensity, time, noise, ring
 
         assert((int)laser_cloud->size() % IMAGE_HEIGHT * IMAGE_WIDTH == 0);
 
-        // reset images
+        // reset images 
         image_range = cv::Mat(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1, cv::Scalar(0));
         image_noise = cv::Mat(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1, cv::Scalar(0));
         image_intensity = cv::Mat(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1, cv::Scalar(0));
@@ -52,12 +53,12 @@ public:
                 intensity = std::min(intensity, 255.0f);
 
                 // update all images
-                image_range.at<uint8_t>(u, v) = std::min(range * 20, 255.0f);
+                image_range.at<uint8_t>(u, v) = std::min(range * 20, 255.0f); //TODO(jxl): 20？
                 image_noise.at<uint8_t>(u, v) = noise;
                 image_intensity.at<uint8_t>(u, v) = intensity;
 
                 // update cloud
-                PointType* p = &cloud_track->points[u * IMAGE_WIDTH + v];
+                PointType* p = &cloud_track->points[u * IMAGE_WIDTH + v]; //一帧点云保存到cloud_track
 
                 if (range >= 0.1)
                 {

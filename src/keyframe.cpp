@@ -114,23 +114,24 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, const cv::Mat &_image_intensi
 {
     time_stamp = _time_stamp;
     index = _index;
-    cloud = _cloud;
+    cloud = _cloud; //该帧点云x, y, z, intensity
     image = _image_intensity.clone();
     image_intensity = _image_intensity.clone();
-    cv::resize(image, thumbnail, cv::Size(), MATCH_IMAGE_SCALE, MATCH_IMAGE_SCALE);
+    cv::resize(image, thumbnail, cv::Size(), MATCH_IMAGE_SCALE, MATCH_IMAGE_SCALE); //MATCH_IMAGE_SCALE=1.0
+    //thumbnail是image的拷贝
 
     #pragma omp parallel sections num_threads(NUM_THREADS)
     {
         #pragma omp section
-        computeWindowOrbPoint();
+        computeWindowOrbPoint(); //window orb 
         #pragma omp section
-        computeWindowBriefPoint();
+        computeWindowBriefPoint(); //window brief
         #pragma omp section
-        computeSearchOrbPoint();
+        computeSearchOrbPoint(); //search orb
         #pragma omp section
-        computeSearchBriefPoint();
+        computeSearchBriefPoint(); //search brief
         #pragma omp section
-        computeBoWPoint();
+        computeBoWPoint(); //bow
     }
 
     image_intensity.release();
@@ -145,14 +146,14 @@ void KeyFrame::computeWindowOrbPoint()
         // ORB features
         vector<uchar> status;
         cv::Ptr<cv::ORB> detector = cv::ORB::create(NUM_ORB_FEATURES, 1.2f, 8, 1);
-        detector->detect(image_intensity, orb_window_keypoints, MASK);
-        keypointConverter(orb_window_keypoints, orb_point_2d_uv);
-        extractPoints(orb_point_2d_uv, orb_point_3d, orb_point_2d_norm, status);
+        detector->detect(image_intensity, orb_window_keypoints, MASK); //检测特征
+        keypointConverter(orb_window_keypoints, orb_point_2d_uv); //格式转换
+        extractPoints(orb_point_2d_uv, orb_point_3d, orb_point_2d_norm, status); //orb_point_2d_uv[], orb_point_3d[], orb_point_2d_norm[]一一对应
         reduceVector(orb_point_3d, status);
         reduceVector(orb_point_2d_uv, status);
-        reduceVector(orb_point_2d_norm, status);
-        reduceVector(orb_window_keypoints, status);
-        detector->compute(image_intensity, orb_window_keypoints, orb_window_descriptors);
+        reduceVector(orb_point_2d_norm, status); 
+        reduceVector(orb_window_keypoints, status); //剔除无效点
+        detector->compute(image_intensity, orb_window_keypoints, orb_window_descriptors); //计算每个特征的描述子
     }
 }
 
@@ -178,7 +179,7 @@ void KeyFrame::computeSearchOrbPoint()
     {
         // ORB features
         vector<uchar> status;
-        cv::Ptr<cv::ORB> detector = cv::ORB::create(NUM_ORB_FEATURES*5, 1.2f, 8, 5);
+        cv::Ptr<cv::ORB> detector = cv::ORB::create(NUM_ORB_FEATURES*5, 1.2f, 8, 5); //search时：数量变为5倍
         detector->detect(image_intensity, search_orb_keypoints, MASK);
         keypointConverter(search_orb_keypoints, search_orb_point_2d_uv);
         extractPoints(search_orb_point_2d_uv, search_orb_point_3d, search_orb_point_2d_norm, status);
@@ -196,7 +197,7 @@ void KeyFrame::computeSearchBriefPoint()
     {
         // Corner feautres
         vector<uchar> status;
-        cv::goodFeaturesToTrack(image_intensity, search_brief_point_2d_uv, NUM_BRI_FEATURES*5, 0.01, 2, MASK);
+        cv::goodFeaturesToTrack(image_intensity, search_brief_point_2d_uv, NUM_BRI_FEATURES*5, 0.01, 2, MASK); //search时：数量变为5倍
         extractPoints(search_brief_point_2d_uv, search_brief_point_3d, search_brief_point_2d_norm, status);
         reduceVector(search_brief_point_3d, status);
         reduceVector(search_brief_point_2d_uv, status);
@@ -342,10 +343,11 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
     }
 }
 
-void KeyFrame::extractPoints(const vector<cv::Point2f>& in_point_2d_uv, 
-                        vector<cv::Point3f>& out_point_3d,
-                        vector<cv::Point2f>& out_point_2d_norm,
-                        vector<uchar>& out_status)
+
+void KeyFrame::extractPoints(const vector<cv::Point2f>& in_point_2d_uv, //特征点
+                        vector<cv::Point3f>& out_point_3d, //特征点在相机下3d points
+                        vector<cv::Point2f>& out_point_2d_norm, //特征点对应的归一化像素坐标
+                        vector<uchar>& out_status) //1：valid, 0: invalid
 {
     assert(cloud->size() > 0);
 
@@ -372,8 +374,8 @@ void KeyFrame::extractPoints(const vector<cv::Point2f>& in_point_2d_uv,
         {
             out_status[i] = 1;
             // lidar -> camera
-            p_3d.x = -pi->y;
-            p_3d.y = -pi->z;
+            p_3d.x = -pi->y;  //坐标系定义符合一般惯例。lidar: x-front, y-left, z-up; camera: x-right, y-down, z-front
+            p_3d.y = -pi->z;  //认为外参平移很小，旋转如上
             p_3d.z = pi->x;
             // normalize to projection plane
             p_2d_n.x = p_3d.x / p_3d.z;
