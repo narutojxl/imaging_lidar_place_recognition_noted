@@ -97,6 +97,7 @@ extern ros::Publisher pub_marker;
 extern ros::Publisher pub_index;
 
 
+extern std::mutex mutex_path;
 
 
 struct PointOuster {

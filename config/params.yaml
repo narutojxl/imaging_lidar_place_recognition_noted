@@ -7,14 +7,14 @@ project_name: "imaging_lidar_place_recognition"
 loop_closure: 1
 
 # Cloud parameters
-cloud_topic: "points_raw"       # point cloud input topic  这个是关键帧的topic？
+cloud_topic: "points_raw"       # point cloud input topic  这个是关键帧的topic
 image_width: 1024               # image horitontal resolution, 还有512，1024，2048分辨率
 image_height: 128               # image vertical resolution
 image_crop: 256                 # mask for blocking feature extraction; indoor/handheld=196-256; jackal=0 
 #在intensity image左右两侧各多少列像素不检测特征点
 
 # Registered path
-path_topic: "lio_sam/mapping/path"
+path_topic: "lio_sam/mapping/path" #关键帧的pose
 
 # Feature matching
 use_brief: 1                    # enabling flag for BRIEF feature 

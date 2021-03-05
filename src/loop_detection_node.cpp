@@ -33,6 +33,8 @@ ros::Publisher pub_prepnp_img;
 ros::Publisher pub_marker;
 ros::Publisher pub_index;
 
+std::mutex mutex_path;
+
 BriefExtractor briefExtractor;
 
 ImageHandler *image_handler;
@@ -40,8 +42,8 @@ LoopDetector loopDetector;
 
 void visualizeLoopClosure(ros::Publisher *pub_m,
                           ros::Publisher *pub_i, 
-                          ros::Time timestamp, 
-                          const map<int, int>& match_container, 
+                          ros::Time timestamp, //curr timestamp
+                          const map<int, int>& match_container, //pair: <curr key, old key>
                           const map<int, int>& pose_container,
                           const pcl::PointCloud<PointType>::Ptr cloud_path)
 {
@@ -105,6 +107,8 @@ void visualizeLoopClosure(ros::Publisher *pub_m,
 
 void path_handler(const nav_msgs::PathConstPtr& path_msg)
 {
+    std::unique_lock<std::mutex> lock(mutex_path);  //TODO(jxl): 该变量的使用要加锁
+
     cloud_traj->clear();
 
     for (size_t i = 0; i < path_msg->poses.size(); ++i)
@@ -135,13 +139,15 @@ void cloud_handler(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
                                       global_frame_index,
                                       image_handler->image_intensity,
                                       image_handler->cloud_track); 
-    //对关键帧intensity image计算window orb，window brief，search orb， search brief， bow 5个描述子 
+    //对关键帧intensity image计算<window orb，search orb>描述子， <window brief，search brief>描述子: 用ransac pnp对词袋匹配的结果进行验证 
+    //bow词袋描述子: current keyframe和database(历史所有keyframes构成)进行匹配得到candidate匹配
 
     // detect loop
     loopDetector.addKeyFrame(keyframe, 1);
 
     // visualize loop
-    index_poseindex_container[global_frame_index] = std::max((int)cloud_traj->size() - 1, 0);
+    std::unique_lock<std::mutex> lock(mutex_path);
+    index_poseindex_container[global_frame_index] = std::max((int)cloud_traj->size() - 1, 0); //pair： <当前关键帧index, 当前关键帧在traj中index>
     visualizeLoopClosure(&pub_marker, &pub_index, cloud_msg->header.stamp, index_match_container, index_poseindex_container, cloud_traj);
 
     global_frame_index++;
@@ -211,10 +217,10 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_cloud = n.subscribe(CLOUD_TOPIC, 1, cloud_handler);
     ros::Subscriber sub_path  = n.subscribe(PATH_TOPIC,  1, path_handler);
-    pub_match_img  = n.advertise<sensor_msgs::Image>                ("loop_detector/image", 1);
-    pub_match_msg  = n.advertise<std_msgs::Float64MultiArray>       ("loop_detector/time", 1);
-    pub_bow_img    = n.advertise<sensor_msgs::Image>                ("loop_detector/bow", 1);
-    pub_prepnp_img = n.advertise<sensor_msgs::Image>                ("loop_detector/prepnp", 1);
+    pub_match_img  = n.advertise<sensor_msgs::Image>                ("loop_detector/image", 1); //ransac pnp + 特征点分布对词袋结果进行验证通过的true 闭环
+    pub_match_msg  = n.advertise<std_msgs::Float64MultiArray>       ("loop_detector/time", 1); //发生true 闭环的两个关键帧timestamp
+    pub_bow_img    = n.advertise<sensor_msgs::Image>                ("loop_detector/bow", 1); //发布词袋检测的闭环(old keyframe and current keyframe), 用orb和brief对两帧intensity image特征提取匹配的结果
+    pub_prepnp_img = n.advertise<sensor_msgs::Image>                ("loop_detector/prepnp", 1); //good feature matcher, but not tested by pnp
     pub_marker     = n.advertise<visualization_msgs::MarkerArray>   ("loop_detector/marker", 1);
     pub_index      = n.advertise<std_msgs::Int64MultiArray>         ("loop_detector/index", 1);
 

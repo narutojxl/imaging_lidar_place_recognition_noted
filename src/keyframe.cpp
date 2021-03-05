@@ -112,8 +112,8 @@ void pubMatchedImages(const ros::Publisher* this_pub,
 // create keyframe online
 KeyFrame::KeyFrame(double _time_stamp, int _index, const cv::Mat &_image_intensity, const pcl::PointCloud<PointType>::Ptr _cloud)
 {
-    time_stamp = _time_stamp;
-    index = _index;
+    time_stamp = _time_stamp; //当前帧的时间戳
+    index = _index; //当前帧的index
     cloud = _cloud; //该帧点云x, y, z, intensity
     image = _image_intensity.clone();
     image_intensity = _image_intensity.clone();
@@ -123,15 +123,15 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, const cv::Mat &_image_intensi
     #pragma omp parallel sections num_threads(NUM_THREADS)
     {
         #pragma omp section
-        computeWindowOrbPoint(); //window orb 
+        computeWindowOrbPoint(); //window orb 描述子
         #pragma omp section
-        computeWindowBriefPoint(); //window brief
+        computeWindowBriefPoint(); //window brief 描述子
         #pragma omp section
-        computeSearchOrbPoint(); //search orb
+        computeSearchOrbPoint(); //search orb 描述子
         #pragma omp section
-        computeSearchBriefPoint(); //search brief
+        computeSearchBriefPoint(); //search brief 描述子
         #pragma omp section
-        computeBoWPoint(); //bow
+        computeBoWPoint(); //bow 描述子
     }
 
     image_intensity.release();
@@ -245,6 +245,7 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
         vector<cv::DMatch> matches, good_matches; 
         cv::BFMatcher matcher = cv::BFMatcher(cv::NORM_HAMMING); // https://docs.opencv.org/3.3.1/d3/da1/classcv_1_1BFMatcher.html
         matcher.match(orb_window_descriptors, old_kf->search_orb_descriptors, matches);
+        //curr keyframe window特征点与candidate keyframe search区域的特征点进行匹配
 
         std::sort(matches.begin(), matches.end());
         for (size_t i = 0; i < matches.size(); ++i)
@@ -263,23 +264,23 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
             for (size_t i=0; i < good_matches.size(); i++)
             {
                 int cur_index = good_matches[i].queryIdx;
-                matched_3d.push_back(orb_point_3d[cur_index]);
-                matched_2d_cur.push_back(orb_point_2d_uv[cur_index]);
+                matched_3d.push_back(orb_point_3d[cur_index]); //curr keyframe window特征点在当前帧camera下 3d point
+                matched_2d_cur.push_back(orb_point_2d_uv[cur_index]); //curr keyframe window特征点(u,v)
                 
                 int old_index = good_matches[i].trainIdx;
-                matched_2d_old.push_back(old_kf->search_orb_point_2d_uv[old_index]);
-                matched_2d_old_norm.push_back(old_kf->search_orb_point_2d_norm[old_index]);
+                matched_2d_old.push_back(old_kf->search_orb_point_2d_uv[old_index]); //匹配的candidate keyframe search区域特征点(u,v)
+                matched_2d_old_norm.push_back(old_kf->search_orb_point_2d_norm[old_index]); //归一化(u,v)
             }
 
             pubMatchedImages(&pub_prepnp_img, time_stamp, true, 5, cv::Scalar(0, 255, 0), index, old_kf->index, thumbnail, old_kf->thumbnail, matched_2d_cur, matched_2d_old);
 
-            PnPRANSAC(matched_2d_old_norm, matched_3d, status);
+            PnPRANSAC(matched_2d_old_norm, matched_3d, status); //pnp ransac求得inlier matchers
             reduceVector(matched_3d, status);
             reduceVector(matched_2d_cur, status);
             reduceVector(matched_2d_old, status);
             reduceVector(matched_2d_old_norm, status);
 
-            if ((int)matched_2d_cur.size() > MIN_LOOP_FEATURE_NUM && distributionValidation(matched_2d_cur, matched_2d_old))
+            if ((int)matched_2d_cur.size() > MIN_LOOP_FEATURE_NUM && distributionValidation(matched_2d_cur, matched_2d_old))//分布验证
             {
                 pubMatchedImages(&pub_match_img, time_stamp, true, 5, cv::Scalar(0, 255, 0), index, old_kf->index, thumbnail, old_kf->thumbnail, matched_2d_cur, matched_2d_old);
                 return true;
@@ -375,7 +376,7 @@ void KeyFrame::extractPoints(const vector<cv::Point2f>& in_point_2d_uv, //特征
             out_status[i] = 1;
             // lidar -> camera
             p_3d.x = -pi->y;  //坐标系定义符合一般惯例。lidar: x-front, y-left, z-up; camera: x-right, y-down, z-front
-            p_3d.y = -pi->z;  //认为外参平移很小，旋转如上
+            p_3d.y = -pi->z;  //平移为零，旋转如上，可以认为雷达坐标系原点处有一个camera
             p_3d.z = pi->x;
             // normalize to projection plane
             p_2d_n.x = p_3d.x / p_3d.z;

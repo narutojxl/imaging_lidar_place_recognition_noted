@@ -1,3 +1,11 @@
+
+# Note:
+* (jxl: 20210305): 
+* author uses keyframe's intensity image with DBOW3 to get candidate loop closure, then uses ransac pnp(orb or brief  to match feature points of curr keyframe and old keyframe) to valid.
+* the true loop is published on "loop_detector/time", which is their timestamp. slam module(with other loop closure method, e.g. [intensity scan context](https://github.com/narutojxl/iscloam_noted). Or without loop closure) can use this loop info to match their point cloud and add the constraint to backend.
+* constraint got from ransac pnp is not used.
+
+
 # Robust Place Recognition using an Imaging Lidar
 
 A place recognition package using high-resolution imaging lidar. For best performance, a lidar equipped with more than 64 uniformly distributed channels is strongly recommended, i.e., [Ouster OS1-128 lidar](https://ouster.com/products/os1-lidar-sensor/).

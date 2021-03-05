@@ -14,7 +14,7 @@ void LoopDetector::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     int loop_index = -1;
     if (flag_detect_loop)
     {
-        loop_index = detectLoop(cur_kf, cur_kf->index); //返回当前关键帧与database关键帧中最相似的帧号
+        loop_index = detectLoop(cur_kf, cur_kf->index); //返回当前关键帧与database中最相似的帧号
     }
     else
     {
@@ -28,7 +28,7 @@ void LoopDetector::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 
         if (abs(cur_kf->time_stamp - old_kf->time_stamp) > MIN_LOOP_SEARCH_TIME)
         {
-            if (cur_kf->findConnection(old_kf)) //用ransac和pnp对词袋计算的结果进行验证
+            if (cur_kf->findConnection(old_kf)) //用ransac pnp对词袋描述子匹配的结果进行验证
             {
                 std_msgs::Float64MultiArray match_msg;
                 match_msg.data.push_back(cur_kf->time_stamp);
